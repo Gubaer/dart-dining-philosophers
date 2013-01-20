@@ -1,0 +1,10 @@
+name:  dining_philosophers
+
+description: Solutions for the dining philosopher problem.
+
+authors:
+- Karl Guggisberg <karl.guggisberg@guggis.ch>
+
+dependencies:
+  unittest: any
+  args: any
