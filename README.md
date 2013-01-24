@@ -3,9 +3,9 @@
 This repository a couple of solutions for the [dining philosopher problem](http://en.wikipedia.org/wiki/Dining_philosophers_problem).
 
 The solutions are implemented in [Dart](http://www.dartlang.org) using Dart's
-_isolates_ for concurrent programming.
+_isolates_, an actor-like facility for concurrent programming.
 
-The following implementatio is a  "standard solution":
+The following implementation is a  "standard solution":
 
  * `bin/dinner5.dart` implements a simulation of a philosopher conference using
     Dijkstra's aproach of [resource ordering] (http://en.wikipedia.org/wiki/Dining_philosophers_problem#Resource_hierarchy_solution).
@@ -15,7 +15,8 @@ The following implementatio is a  "standard solution":
     # run a conference with 5 philosophers 
     $ dart bin/dinner5.dart -n 5
     ```
-The other simulations are ad-hoch implemetations.
+    
+The other simulations are ad-hoc implementations.
 
 ## Notes
 *  Most of the simulations in this package are ad-hoc solutions for the 
