@@ -1,6 +1,7 @@
 # Dining philosophers
 
-This repository a couple of solutions for the [dining philosopher problem](http://en.wikipedia.org/wiki/Dining_philosophers_problem).
+This repository provides various implementations of the
+[dining philosopher problem](http://en.wikipedia.org/wiki/Dining_philosophers_problem).
 
 The solutions are implemented in [Dart](http://www.dartlang.org) using Dart's
 _isolates_, an actor-like facility for concurrent programming.
@@ -31,7 +32,7 @@ The other simulations are ad-hoc implementations.
    ```
    $ dart bin/dinner5.dart -n 50
    ```
-   which creates an actor graph for 50 philosophers and 50 forks will terminate
-   with a `Segmentation fault`.
+   which creates an actor graph for 50 philosophers and 50 forks currently 
+   terminates with a `Segmentation fault`.
 
 
