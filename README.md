@@ -23,22 +23,22 @@ The other simulations are ad-hoc implementations.
 
 As of M3 (2013/01) Dart supports two techniques to communicate between
 isolates:
-  1. _Ports_  - the message source sends a messages to a 
+  1. **Ports**  - the message source sends a messages to a 
      [SendPort](http://api.dartlang.org/docs/bleeding_edge/dart_isolate/SendPort.html).
      It is received by the message target by a 
      [ReceivePort] (http://api.dartlang.org/docs/bleeding_edge/dart_isolate/ReceivePort.html).
      
-  2. _Streams_ - the message source adds a message to an
+  2. **Streams** - the message source adds a message to an
      [IsolateSink](http://api.dartlang.org/docs/bleeding_edge/dart_isolate/IsolateSink.html).
      The message receiver listens on a corresponding 
      [IsolateStream](http://api.dartlang.org/docs/bleeding_edge/dart_isolate/IsolateStream.html). 
 
 Both techniques are used in these examples:
   * [dinner 5](https://github.com/Gubaer/dart-dining-philosophers/blob/master/lib/dinner5.dart)
-    simulates a dinner of philosophers using _ports_
+    simulates a dinner of philosophers using **ports**
     
   * [dinner 6](https://github.com/Gubaer/dart-dining-philosophers/blob/master/lib/dinner6.dart)
-    simulates a dinner of philosophers using _streams_
+    simulates a dinner of philosophers using **streams**
       
 
 ## Notes
