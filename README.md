@@ -6,13 +6,12 @@ This repository provides various implementations of the
 The solutions are implemented in [Dart](http://www.dartlang.org) using Dart's
 _isolates_, an actor-like facility for concurrent programming.
 
-The following implementations are  "standard solution":
+The following implementations are  "standard solutions":
 
  *  [bin/dinner5.dart](https://github.com/Gubaer/dart-dining-philosophers/blob/master/lib/dinner5.dart)
      implements a simulation of a philosopher conference using
     Dijkstra's aproach of [resource ordering] (http://en.wikipedia.org/wiki/Dining_philosophers_problem#Resource_hierarchy_solution).
-    
-    Run it using
+       
     ```bash
     # run a conference with 5 philosophers 
     $ dart bin/dinner5.dart -n 5
@@ -22,7 +21,6 @@ The following implementations are  "standard solution":
     implements a simulation of a philosopher conference using
     the [algorithm of Chandy/Misra] (http://www.cs.utexas.edu/users/misra/scannedPdf.dir/DrinkingPhil.pdf).
     
-    Run it using
     ```bash
     # run a conference with 5 philosophers 
     $ dart bin/dinner4.dart -n 5
