@@ -30,7 +30,9 @@ import "dart:async";
 var _random = new Random();
 
 /// completes after [delay] ms with value null
-Future sleep(delay) => new Future.delayed(delay, ()=>null);
+Future sleep(delay) => new Future.delayed(
+    new Duration(milliseconds:delay), ()=>null);
+
 /// completes after a random number of `ms` in the range
 /// 0..[range] with value null
 Future sleepRandom(range) => sleep(_random.nextInt(range));
@@ -161,7 +163,7 @@ class Philosopher {
       })
       .then((_) {
         forks.sort((a,b) => a["id"].compareTo(b["id"]));
-        var fids = forks.mappedBy((f)=>f["id"]).join(",");
+        var fids = forks.map((f)=>f["id"]).join(",");
         log("init - forks: $fids");
       });
     } else if (message is StartDinner) {

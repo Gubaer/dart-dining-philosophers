@@ -1,5 +1,5 @@
 name:  dining_philosophers
-version: 0.0.3
+version: 0.3.0
 
 description: Solutions for the dining philosopher problem.
 

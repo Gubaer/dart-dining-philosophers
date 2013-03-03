@@ -1,7 +1,7 @@
 library dining_philosophers.dinner4;
 /**
  * This is an implementation of the dining philosopher problem based
- * on terminology and algorithm from the paper 
+ * on terminology and algorithm from the paper
  *
  * Chandy, K.M; Misra; J.
  * The Drinking Philosophers Problem
@@ -15,7 +15,8 @@ import "dart:math";
 var _random = new Random();
 
 /// completes after [delay] ms with value null
-Future _sleep(delay) => new Future.delayed(delay, ()=>null);
+Future _sleep(delay) => new Future.delayed(
+    new Duration(milliseconds: delay), ()=>null);
 
 /// completes after a random number of `ms` in the range
 /// 0..[range] with value null
@@ -64,19 +65,19 @@ class Philosopher {
   /// philosopher id
   int _id;
   int _numPhilosophers;
-  
-  /// send ports of the neighbouring philosophers 
+
+  /// send ports of the neighbouring philosophers
   List<SendPort> _neighbours = new List.fixedLength(2, fill: null);
-  
-  /// the left and right forks. 
+
+  /// the left and right forks.
   List<Fork> _forks = new List.fixedLength(2, fill:null);
-  
+
   /// the left and right forksrequests
   List<ForkRequest> _forkRequests = new List.fixedLength(2, fill: null);
-  
-  /// the ids of the left and right fork 
+
+  /// the ids of the left and right fork
   List<int> _forkIds = new List.fixedLength(2, fill: null);
-  
+
   /// the ids of the left and right philosopher
   List<int> _philoIds = new List.fixedLength(2, fill: null);
 
@@ -87,7 +88,7 @@ class Philosopher {
   }
 
   _log(m) => print("philosopher $_id: $m");
-  
+
   _init(InitPhilosopher message) {
     _id = message.id;
     _numPhilosophers = message.numPhilosophers;
@@ -95,21 +96,21 @@ class Philosopher {
     _neighbours = [message.left, message.right];
     _philoIds = [(_id + _numPhilosophers - 1) % _numPhilosophers, (_id + 1) % _numPhilosophers];
     /*
-     * Initially, the depedency graph has to be acyclic according to 
+     * Initially, the depedency graph has to be acyclic according to
      * Chandy/Misra. For philosopher 0, left and right are therefore
      * reversed.
      * Furthermore, all philosophers are initialized with the left fork, expect
      * philosopher 0, which is initialized with the right fork and
      * the fork request for the left fork.
-     */  
+     */
     if (_id == 0) {
-      _forkIds = _forkIds.reversed;
-      _neighbours = _neighbours.reversed;
-      _philoIds = _philoIds.reversed;
-    } 
+      _forkIds = _forkIds.reversed.toList();
+      _neighbours = _neighbours.reversed.toList();
+      _philoIds = _philoIds.reversed.toList();
+    }
     if (_id == 0) {
       _forkRequests[RIGHT] = new ForkRequest(_forkIds[RIGHT]);
-      _forks[LEFT]  = new Fork(_forkIds[LEFT]);      
+      _forks[LEFT]  = new Fork(_forkIds[LEFT]);
     } else {
       _forkRequests[LEFT] = new ForkRequest(_forkIds[LEFT]);
       _forks[RIGHT]  = new Fork(_forkIds[RIGHT]);
@@ -135,7 +136,7 @@ class Philosopher {
     if (message is Fork) {
       var fork = (message as Fork);
       assert(!fork.dirty);                // only clean forks
-      assert(_forkIds.contains(fork.id)); // only neighbouring forks 
+      assert(_forkIds.contains(fork.id)); // only neighbouring forks
       assert(_forks.where((f) => f != null && f.id == fork.id).isEmpty); // don't have the fork yet
       if (fork.id == _forkIds[RIGHT]) {
         _log("received right fork ${fork.id}");
@@ -148,7 +149,7 @@ class Philosopher {
       }
       _evaluateState();
     } else if (message is ForkRequest) {
-      var request = (message as ForkRequest);      
+      var request = (message as ForkRequest);
       assert(_forkIds.contains(request.id)); // only request for neighbouring forks
       if (request.id == _forkIds[RIGHT]) {
         _log("received right fork request for fork ${message.id}");
@@ -162,15 +163,15 @@ class Philosopher {
       _evaluateState();
     }
   }
-  
-  get _forkRequestsAsString => _forkRequests.mappedBy((r) => r == null ? "null" : "<${r.id}>").join(",");
-  get _forksAsString => _forks.mappedBy((f) => f == null ? "null" : "<${f.id}/${f.dirty}>").join(",");
-  
+
+  get _forkRequestsAsString => _forkRequests.map((r) => r == null ? "null" : "<${r.id}>").join(",");
+  get _forksAsString => _forks.map((f) => f == null ? "null" : "<${f.id}/${f.dirty}>").join(",");
+
   _neighbourId(side) => _philoIds[side];
 
   /// send the fork of [side] (either [LEFT] or [RIGHT]) to the
   /// neighbouring philosopher, if possible
-  _sendForkIfPossible(side) {    
+  _sendForkIfPossible(side) {
     if (_fork(side) && _dirty(side) && _reqf(side)) {
       _forks[side].dirty = false;
       _log("sending fork ${_forks[side].id} to ${_neighbourId(side)}");
@@ -178,7 +179,7 @@ class Philosopher {
       _forks[side] = null;
     }
   }
-  
+
   /// send the fork request for the fork of [side] (either [LEFT] or [RIGHT]) to the
   /// neighbouring philosopher, if possible
   _sendForkRequestIfPossible(side) {
@@ -188,18 +189,18 @@ class Philosopher {
       _forkRequests[side] = null;
     }
   }
-  
+
   _evaluateStateHungry() {
     _log("evaluate 'hungry' ... forks:[$_forksAsString,] request: [$_forkRequestsAsString]");
     // both forks available -> start eating
     if (_fork(LEFT) && _fork(RIGHT)) {
       _eat();
-    } else {    
-      // missing a fork? 
+    } else {
+      // missing a fork?
       // request it as soon as the request token is present
       _sendForkRequestIfPossible(LEFT);
       _sendForkRequestIfPossible(RIGHT);
-      
+
       // do we have a  dirty  fork and got a fork request?
       // clear and send the fork
       _sendForkIfPossible(LEFT);
@@ -212,13 +213,13 @@ class Philosopher {
     // do we have a  dirty  fork and got a fork request?
     // clear and send the fork
     _sendForkIfPossible(LEFT);
-    _sendForkIfPossible(RIGHT);    
+    _sendForkIfPossible(RIGHT);
   }
 
   // predicates used in the paper from Chandy/Misra
   bool _reqf(side) => _forkRequests[side] != null;
   bool _fork(side) => _forks[side] != null;
-  bool _dirty(side) => _forks[side].dirty;  
+  bool _dirty(side) => _forks[side].dirty;
 
   _evaluateState() {
     switch(_state) {
@@ -227,7 +228,7 @@ class Philosopher {
       case EATING: /* while eating the philosopher doesn't respond */ break;
     }
   }
-  
+
   _think() {
     _state = THINKING;
     _log("thinking ... START");
