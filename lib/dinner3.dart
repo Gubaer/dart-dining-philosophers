@@ -205,7 +205,7 @@ class Philosopher {
 
   Future _releaseChopstick(chopstick) {
     chopstick.send(new ReleaseChopstick(_id));
-    return new Future.immediate(null);
+    return new Future.value(null);
   }
 
   Future _releaseChopsticks() {
@@ -225,7 +225,7 @@ class Philosopher {
       // successfully grabed the chopsticks ?
       if (ret.every((v) => v)) {
         _log("sucessfully grabed chopsticks ...");
-        return new Future.immediate(null);
+        return new Future.value(null);
       }
       _log("failed to grab chopsticks ... retrying later");
       // release any chopstick and retry later

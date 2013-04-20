@@ -246,7 +246,7 @@ class Philosopher {
   Future _releaseChopsticks() {
     _log("releasing chopsticks ...");
     _table.send(new ReleaseChopsticks(_i));
-    return new Future.immediate(null);
+    return new Future.value(null);
   }
 
   /// completes with value null when thinking is over

@@ -197,7 +197,7 @@ class Philosopher {
       return call(forks[1]["fork"], new PickUp());
     }).then((_) {
       log("pick up: got fork ${forks[1]["id"]}");
-      return new Future.immediate(null);
+      return new Future.value(null);
     });
   }
 

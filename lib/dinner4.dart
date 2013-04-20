@@ -67,19 +67,19 @@ class Philosopher {
   int _numPhilosophers;
 
   /// send ports of the neighbouring philosophers
-  List<SendPort> _neighbours = new List.fixedLength(2, fill: null);
+  List<SendPort> _neighbours = new List.filled(2, null);
 
   /// the left and right forks.
-  List<Fork> _forks = new List.fixedLength(2, fill:null);
+  List<Fork> _forks = new List.filled(2, null);
 
   /// the left and right forksrequests
-  List<ForkRequest> _forkRequests = new List.fixedLength(2, fill: null);
+  List<ForkRequest> _forkRequests = new List.filled(2, null);
 
   /// the ids of the left and right fork
-  List<int> _forkIds = new List.fixedLength(2, fill: null);
+  List<int> _forkIds = new List.filled(2,null);
 
   /// the ids of the left and right philosopher
-  List<int> _philoIds = new List.fixedLength(2, fill: null);
+  List<int> _philoIds = new List.filled(2, null);
 
   int _state;
 
