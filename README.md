@@ -40,8 +40,8 @@ The implementations are based on the Dart SDK 1.6.
 
 Compared to initial releases of Dart (in particular to the pre 1.0 releases), 
 the Dart VM can now cope with larger numbers of isolates. In the current release 1.6
-it is perfectly possible to simulate a large conference of philosophers with 
-> 100 philosophers. In earlier releases the VM would have crashed in this case 
+it is perfectly possible to simulate a large conference of philosophers with  > 100 
+philosophers. In earlier releases the VM would have crashed in this case 
 with a  segmentation violation.
 
 
