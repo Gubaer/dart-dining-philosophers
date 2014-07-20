@@ -1,17 +1,13 @@
-library dinner5.cmd;
-
-import "dart:isolate";
 import "package:args/args.dart";
 import "dart:io";
-
 import "package:dining_philosophers/dinner5.dart" as dinner5;
 
-main() {
+main(List<String> args) {
   var parser = new ArgParser();
   parser.addOption("num-philosophers", abbr: "n", defaultsTo: "5",
       help: "the number of philosophers [n >= 2]");
   parser.addFlag("help", abbr: "h", negatable: false, help: "display help");
-  var options = parser.parse(new Options().arguments);
+  var options = parser.parse(args);
   if (options["help"]) {
     print("usage: dart dinner5.dart");
     print(parser.getUsage());
@@ -31,5 +27,4 @@ main() {
   print("*");
   print("Starting a dinner with $n philosophers ...");
   dinner5.dine(n);
-  port;
 }

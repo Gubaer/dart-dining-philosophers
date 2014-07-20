@@ -1,19 +1,19 @@
-library dinner4.cmd;
-
-import "dart:isolate";
 import "package:args/args.dart";
 import "dart:io";
 
 import "package:dining_philosophers/dinner4.dart" as dinner4;
 
-main() {
+main(List<String> args) {
   var parser = new ArgParser();
-  parser.addOption("num-philosophers", abbr: "n", defaultsTo: "5",
+  parser.addOption(
+      "num-philosophers",
+      abbr: "n",
+      defaultsTo: "5",
       help: "the number of philosophers [n >= 2]");
   parser.addFlag("help", abbr: "h", negatable: false, help: "display help");
-  var options = parser.parse(new Options().arguments);
+  var options = parser.parse(args);
   if (options["help"]) {
-    print("usage: dart dinner4.dart");
+    print("usage: dart dinner4.dart [options]");
     print(parser.getUsage());
     exit(0);
   }
@@ -23,10 +23,9 @@ main() {
     exit(1);
   });
   if (n < 2) {
-    print("fatal: ${options["num-philosophers"]} isn't a number >= 2");
+    print("fatal: $n is too small, >=2 required");
     exit(1);
   }
   print("starting a dinner with $n philosophers ...");
   dinner4.dine(n);
-  port;
 }

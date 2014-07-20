@@ -1,4 +1,5 @@
 library dining_philosophers.dinner5;
+
 /**
  * This is a solution for the dining philosopher problem based on
  * Dijkstras aproach.
@@ -21,20 +22,9 @@ library dining_philosophers.dinner5;
  */
 
 import "dart:isolate";
-import "dart:math";
 import "dart:async";
+import "sleep.dart";
 
-var _random = new Random();
-
-/// completes after [delay] ms with value null
-Future sleep(delay) => new Future.delayed(
-    new Duration(milliseconds:delay), ()=>null);
-
-/// completes after a random number of `ms` in the range
-/// 0..[range] with value null
-Future sleepRandom(range) => sleep(_random.nextInt(range));
-
-/// initializes the table with the number of philosophers
 class InitTable {
   /// the number of philosophers. n>=2 expected.
   final int n;
@@ -44,186 +34,232 @@ class InitTable {
 }
 
 /// message to initialize a fork
-class InitFork {
+class InitForkReq {
   final int id;
-  InitFork(this.id);
+  final SendPort replyTo;
+  InitForkReq(this.id, this.replyTo);
 }
 
-class PickUp{}
-class PutDown{}
-class QueryId{}
+class InitForkAck {
+  final int id;
+  final SendPort port;
+  InitForkAck(this.id, this.port);
+}
+
+class PickUp {
+  final SendPort replyTo;
+  PickUp(this.replyTo);
+}
+class PutDown {
+  final SendPort replyTo;
+  PutDown(this.replyTo);
+}
+
+class QueryId {
+  final SendPort replyTo;
+  QueryId(this.replyTo);
+}
 
 /**
  * Represents a fork on the diner table.
  */
 class Fork {
 
+  static spawn(int id, SendPort replyTo) =>
+      Isolate.spawn(_spawn, new InitForkReq(id, replyTo));
+  static _spawn(InitForkReq init) => new Fork._(init);
+
   bool inUse = false;
   int id;
   SendPort pending = null;
 
-  Fork() {
-    port.receive(handleInit);
+  final ReceivePort _me = new ReceivePort();
+  Stream _stream;
+
+  Fork._(InitForkReq init) {
+    id = init.id;
+    _stream.asBroadcastStream();
+    init.replyTo.send(new InitForkAck(id, _me.sendPort));
+    _stream.listen(_handleRequest);
   }
 
-  /// handles messages when in state 'init'
-  handleInit(message, replyTo) {
-    assert(message is InitFork);
-    this.id = message.id;
-    port.receive(handleRequest);
-    log("initialized");
-  }
-
-  /// handles messages after the initialization phase
-  handleRequest(message, replyTo) {
-    if (message is PickUp) {
-      if (inUse) {
-        log("pickup: already in use - remember request");
-        pending = replyTo;
-      } else {
-        log("pickup: not in used yet - grant request");
-        inUse = true;
-        replyTo.send(true);
-      }
-    } else if (message is PutDown) {
-      assert(inUse);
-      if (pending != null) {
-        log("putDown: grant to pending request");
-        pending.send(true);
-        pending = null;
-      } else {
-        log("putDown: free again");
-        inUse = false;
-      }
-      replyTo.send(null);
-    } else if (message is QueryId) {
-      log("query id ...");
-      replyTo.send(id);
+  _handlePickUp(PickUp msg) {
+    if (inUse) {
+      _log("pickup: already in use - remember request");
+      pending = msg.replyTo;
+    } else {
+      _log("pickup: not in used yet - grant request");
+      inUse = true;
+      msg.replyTo.send(true);
     }
   }
 
-  log(m) => print("fork $id: $m");
-}
+  _handlePutDown(PutDown msg) {
+    assert(inUse);
+    if (pending != null) {
+      _log("putDown: grant to pending request");
+      pending.send(true);
+      pending = null;
+    } else {
+      _log("putDown: free again");
+      inUse = false;
+    }
+    msg.replyTo.send(null);
+  }
 
-fork() => new Fork();
+  _handleQueryId(QueryId msg) {
+    _log("query id ...");
+    msg.replyTo.send(id);
+  }
+
+  /// handles messages after the initialization phase
+  _handleRequest(message) {
+    if (message is PickUp) {
+      _handlePickUp(message);
+    } else if (message is PutDown) {
+      _handlePutDown(message);
+    } else if (message is QueryId) {
+      _handleQueryId(message);
+    }
+  }
+
+  _log(m) => print("fork $id: $m");
+}
 
 /// message sent to initialize a philosopher
 class InitPhilosopher {
   final int id;
   final List<SendPort> forks;
-  InitPhilosopher(this.id, this.forks);
+  final SendPort replyTo;
+  InitPhilosopher(this.id, this.forks, this.replyTo);
+}
+
+class InitPhilosopherAck {
+  final int id;
+  final SendPort port;
+  InitPhilosopherAck(this.id, this.port);
 }
 
 /// message sent to start the dinner
-class StartDinner{}
-
+class StartDinner {
+  const StartDinner();
+}
 
 class Philosopher {
-  int id;
-  List forks;
+  int _id;
+  List _forks;
 
-  Philosopher() {
-    port.receive(handleInit);
+  static spawn(int id, List<SendPort> forks, SendPort replyTo)
+    => Isolate.spawn(_spawn, new InitPhilosopher(id, forks, replyTo));
+  static _spawn(InitPhilosopher init) => new Philosopher._(init);
+
+  final ReceivePort _me = new ReceivePort();
+  Stream _stream;
+
+  Philosopher._(InitPhilosopher init) {
+    _id = init.id;
+    _forks = init.forks;
+    _stream = _me.asBroadcastStream();
+    init.replyTo.send(new InitPhilosopherAck(_id, _me.sendPort));
+
+    Future awaitStartDinner() =>
+      _stream.firstWhere((msg) => msg is StartDinner);
+
+    Future startDinner(_) => _thinkAndEat();
+
+    awaitStartDinner()
+    .then(startDinner);
   }
 
-  /// responds to messages when in 'init' state
-  handleInit(message,replyTo) {
-    if(message is InitPhilosopher) {
-      id = message.id;
-      forks = [];
-      Future.forEach(message.forks, (f) =>
-        f.call(new QueryId())
-        .then((id) => forks.add({"id": id, "fork": f}))
-      )
-      .then((_) {
-        forks.sort((a,b) => a["id"].compareTo(b["id"]));
-        var fids = forks.map((f)=>f["id"]).join(",");
-        log("init - forks: $fids");
-      });
-    } else if (message is StartDinner) {
-      thinkAndEat();
-    }
+  _thinkAndEat([_]) {
+    _think()
+    .then(_pickUpForks)
+    .then(_eat)
+    .then(_putDownForks)
+    .then(_thinkAndEat());
   }
 
-  thinkAndEat() {
-    think()
-    .then((_) => pickUpForks())
-    .then((_) => eat())
-    .then((_) => putDownForks())
-    .then((_) => thinkAndEat());
-  }
-
-  Future think() {
-    log("thinking ...");
+  Future _think() {
+    _log("thinking ...");
     return sleepRandom(2000);
   }
 
-  Future eat() {
-    log("eating ...");
+  Future _eat(_) {
+    _log("eating ...");
     return sleepRandom(2000);
   }
 
-  Future pickUpForks() {
-    log("picking up forks ... START");
-    return forks[0]["fork"].call(new PickUp())
-    .then((_) {
-      log("pick up: got fork ${forks[0]["id"]}");
-      return forks[1]["fork"].call(new PickUp());
-    }).then((_) {
-      log("pick up: got fork ${forks[1]["id"]}");
-      return new Future.value(null);
+  Future _pickUpForks(_) {
+    final ReceivePort replyTo = new ReceivePort();
+    _forks.forEach((fork) => fork.send(new PickUp(replyTo.sendPort)));
+    return replyTo.take(2).toList().then((_) {
+      replyTo.close();
+      return new Future.value();
     });
   }
 
-  Future putDownForks() {
-    log("putting down forks ...");
-    var msg = new PutDown();
-
-    return forks[1]["fork"].call(msg)
-    .then((_) => forks[0]["fork"].call(msg));
+  Future _putDownForks(_) {
+    _log("putting down forks ...");
+    final ReceivePort replyTo = new ReceivePort();
+    final msg = new PutDown(replyTo.sendPort);
+    _forks.forEach((fork) => fork.send(msg));
+    return replyTo.take(2).toList().then((_) {
+        replyTo.close();
+        return new Future.value();
+    });
   }
 
-  log(m) => print("philosopher $id: $m");
+  _log(m) => print("philosopher $_id: $m");
 }
-
-philosopher() => new Philosopher();
 
 
 class Table {
-  var philosophers = [];
-  var forks = [];
-  int n;
+  List<SendPort> _philosophers;
+  List<SendPort> _forks = [];
+  int _n;
 
-  Table(this.n) {
-    initForks();
-    initPhilosophers();
+  final Completer initialized = new Completer();
+
+  Table(this._n) {
+    _initForks()
+    .then(_initPhilosophers)
+    .then((_) => initialized.complete());
   }
 
-  initForks() {
-    for (int i=0; i<n; i++) {
-      forks.add(spawnFunction(fork));
-      forks[i].send(new InitFork(i));
+  Future _initForks() {
+    final ReceivePort replyTo = new ReceivePort();
+    for (int i = 0; i < _n; i++) {
+      Fork.spawn(i, replyTo.sendPort);
     }
+    _forks = new List.filled(_n, null);
+    return replyTo.take(_n).forEach((InitForkAck msg) {
+      _forks[msg.id] = msg.port;
+    });
   }
 
-  initPhilosophers() {
-    for (int i=0; i<n; i++) {
-      philosophers.add(spawnFunction(philosopher));
-      var forks = [this.forks[i], this.forks[(i + n -1) % n]];
-      philosophers[i].send(new InitPhilosopher(i, forks));
+  Future _initPhilosophers(_) {
+    final ReceivePort replyTo = new ReceivePort();
+    for (int i = 0; i < _n; i++) {
+      final forks = [this._forks[i], this._forks[(i + _n - 1) % _n]];
+      Philosopher.spawn(i, forks, replyTo.sendPort);
     }
+    _philosophers = new List.filled(_n, null);
+    return replyTo.take(_n).forEach((InitPhilosopherAck msg) {
+      _philosophers[msg.id] = msg.port;
+    });
   }
 
   dine() {
-    var msg = new StartDinner();
-    philosophers.forEach((p) => p.send(msg));
+    const msg = const StartDinner();
+    start([_]) => _philosophers.forEach((p) => p.send(msg));
+    initialized.future.then(start);
   }
 }
 
 dine(int n) {
-  var table = new Table(n);
+  final table = new Table(n);
   table.dine();
+  // to keep the program alive
+  new ReceivePort()..listen((_){});
 }
-
-
 

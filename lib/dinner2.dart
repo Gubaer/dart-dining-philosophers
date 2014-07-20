@@ -1,4 +1,4 @@
-library dining_philosophers.dinner1;
+library dining_philosophers.dinner2;
 /**
  * This version of a dinner of philosophers consists of the following
  * actors:
@@ -19,18 +19,8 @@ library dining_philosophers.dinner1;
  */
 
 import "dart:isolate";
-import "dart:math";
 import "dart:async";
-
-var _random = new Random();
-
-/// completes after [delay] ms with value null
-Future _sleep(delay) => new Future.delayed(
-    new Duration(milliseconds: delay), ()=>null);
-
-/// completes after a random number of `ms` in the range
-/// 0..[range] with value null
-Future _sleepRandom(range) => _sleep(_random.nextInt(range));
+import "sleep.dart";
 
 /// initializes the table with the number of philosophers
 class InitTable {
@@ -41,29 +31,24 @@ class InitTable {
   }
 }
 
-/**
- * Messages to acquire both chopsticks.
- *
- * Sent by a philosopher to the table.
- */
 class AcquireChopsticks {
-  /// the philosopher id
-  final int philosopher;
-  const AcquireChopsticks(this.philosopher);
+  final int id;
+  final SendPort replyTo;
+  const AcquireChopsticks(this.id, this.replyTo);
 }
 
-/**
- * Messages to release both chopsticks.
- *
- * Sent by a philosopher to the table.
- */
 class ReleaseChopsticks {
-  /// the philosopher id
-  final int philosopher;
-  const ReleaseChopsticks(this.philosopher);
+  final int id;
+  const ReleaseChopsticks(this.id);
 }
 
 class NotifyChopsticksAvailable{}
+
+class NotifyPhilosopherPort {
+  final int id;
+  final SendPort port;
+  const NotifyPhilosopherPort(this.id, this.port);
+}
 
 /**
  * The table where the philosophers are sitting.
@@ -74,70 +59,69 @@ class NotifyChopsticksAvailable{}
  * or denied by the table.
  */
 class Table {
-  static const STATE_INIT = 0;
-  static const STATE_ACTING = 1;
 
-  var _n;
-  var _state = STATE_INIT;
-  var _taken = <bool>[];
-  var _philosophers = [];
+  /// spawns an isolate for a table with [n] philosophers
+  static Future<Isolate> spawn(int n) => Isolate.spawn(_spawn, n);
+  static _spawn(int n) => new Table(n);
 
-  Table() {
-    port.receive((message, replyTo) {
-      switch(_state) {
-        case STATE_INIT: _whenInit(message, replyTo); break;
-        case STATE_ACTING: _whenActing(message, replyTo); break;
-      }
+  int _n;
+  List<bool> _taken = <bool>[];
+  List<SendPort> _philosophers = [];
+  ReceivePort _port = new ReceivePort();
+
+  Table(this._n) {
+    _taken = new List.filled(_n, false);
+    _philosophers = new List.filled(_n, null);
+    _placePhilosophers();
+    _port.asBroadcastStream().take(_n).toList()
+    .then((msgs) {
+       msgs.forEach((msg) => _philosophers[msg.id] = msg.port);
+       _port.listen(_handleMessage);
     });
   }
 
-  get _takenToString  => _taken.mappedBy((b) => b.toString()).join(",");
+  _placePhilosophers() {
+     for (var i = 0; i < _n; i++) {
+       Philosopher.spawn(i, _port.sendPort);
+     }
+   }
 
   _log(message) => print("table: $message");
 
-  _whenInit(message, _) {
-    assert(message is InitTable);
-    this._n = message.n;
-    _taken = new List.filled(_n, false);
-    _log("placing philosophers ...");
-    for (int i=0; i< _n; i++) {
-      var p = spawnFunction(philosopher);
-      p.send(new InitPhilosopher(i, port.toSendPort()));
-      _philosophers.add(p);
-    }
-    _log("starting to dine ...");
-    _philosophers.forEach((p) => p.send(new StartDinner()));
-    _state = STATE_ACTING;
+  _isTaken(i) => _taken[i] || _taken[(i + _n -1) % _n];
+  _setTaken(i, bool state) {
+    _taken[i] = state;
+    _taken[(i + _n -1) % _n] = state;
   }
 
-  _whenActing(message, replyTo) {
+  /// pick up the chopsticks for philosopher [i]
+  _pickUp(i) => _setTaken(i, true);
+
+  /// put down the chopsticks for philosopher [i]
+  _putDown(i) => _setTaken(i, false);
+
+  _handleMessage(message) {
     if (message is AcquireChopsticks) {
-      var p = message.philosopher;
-      var left = p;
-      var right = (p + _n -1) % _n;
-      if (!_taken[left] && !_taken[right]) {
-        _taken[left] = true;
-        _taken[right] = true;
-        _log("philo $p: granting both chopsticks ...");
-        replyTo.send(true);
+      if (! _isTaken(message.id)) {
+        _pickUp(message.id);
+        _log("philo ${message.id}: granted both chopsticks ...");
+        message.replyTo.send(true);
       } else {
-        replyTo.send(false);
+        message.replyTo.send(false);
       }
     } else if (message is ReleaseChopsticks) {
-      _taken[message.philosopher] = false;
-      _taken[(message.philosopher + _n -1) % _n] = false;
-      _log("philo ${message.philosopher}: released chopsticks ...");
+      _putDown(message.id);
+      _log("philo ${message.id}: released chopsticks ...");
       _notifyChopstickAvailable();
     }
   }
 
   /// notifies all philosophers that chopsticks are available
-  _notifyChopstickAvailable() {
+  _notifyChopstickAvailable() =>
     _philosophers.forEach((p) => p.send(new NotifyChopsticksAvailable()));
-  }
+
 }
 
-table() => new Table();
 
 /**
  * Message to initialize a philosopher
@@ -150,122 +134,77 @@ class InitPhilosopher {
   InitPhilosopher(this.i, this.table);
 }
 
-/// Message sent to philosophers to start the dinner
-class StartDinner{}
-
 /**
  * An instance of Philosopher represents a thinking and eating philosopher.
  *
  */
 class Philosopher {
-  static const STATE_INIT = 0;
-  static const STATE_ACTING = 1;
 
-  var _i;
-  var _table;
-  var _state = STATE_INIT;
+  static Future<Isolate> spawn(int i, SendPort table) =>
+      Isolate.spawn(_spawn, new InitPhilosopher(i, table));
+  static _spawn(InitPhilosopher init) => new Philosopher(init.i, init.table);
 
-  // in STATE_WAITING_FOR_CHOPSTICKS a philosopher wait for the
-  // completion of the future of this completer.
-  var _chopstickAvailCompleter = null;
+  int _i;
+  SendPort _table;
+  ReceivePort _me = new ReceivePort();
 
-  Philosopher() {
-    port.receive((message, replyTo) {
-      switch(_state) {
-        case STATE_INIT: _whenInit(message, replyTo); break;
-        case STATE_ACTING: _whenActing(message, replyTo); break;
-      }
-    });
+  Philosopher(this._i, this._table) {
+    _table.send(new NotifyPhilosopherPort(_i, _me.sendPort));
+    _thinkThenEat();
   }
 
   _log(message) => print("philosopher $_i: $message");
 
-  _whenInit(message, _) {
-    assert(message is InitPhilosopher);
-    this._i = message.i;
-    this._table = message.table;
-    _state = STATE_ACTING;
-  }
-
-  _whenActing(message, _) {
-    if (message is StartDinner) {
-      _thinkThenEat();
-    }
-    else if (message is NotifyChopsticksAvailable) {
-      if (_chopstickAvailCompleter != null) {
-        // this will trigger the next attempt to acquire
-        // chopsticks, see _acquireChopsticks below
-        _chopstickAvailCompleter.complete(null);
-      }
-    }
-  }
-
-  _thinkThenEat() {
+  _thinkThenEat([_]) {
     _think()
     .then((_) {
         _log("acquire chopsticks ... START");
         return _aquireChopsticks();
     })
-    .then((_) => _eat())
-    .then((_) => _releaseChopsticks())
-    .then((_) => _thinkThenEat());
+    .then(_eat)
+    .then(_releaseChopsticks)
+    .then(_thinkThenEat);
   }
 
-  /// the returned future is completed upon the
-  /// next received [NotifyChopsticksAvailable] message.
-  Future _waitForChopstickAvailNotification() {
-    _chopstickAvailCompleter = new Completer();
-    return _chopstickAvailCompleter.future;
-  }
-
-  /// completes with value null when usage of both
-  /// chopsticks is granted
   Future _aquireChopsticks() {
-    var completer = new Completer();
-    _table.call(new AcquireChopsticks(_i)).then((result) {
-      if (result) {
+    ReceivePort result = new ReceivePort();
+    _table.send(new AcquireChopsticks(_i, result.sendPort));
+    return result.first.then((success) {
+      result.close();
+      if (success) {
         _log("acquire chopsticks ... DONE");
-        completer.complete(null);
-        return;
+        return new Future.value();
       }
-      // we don't poll after a random delay, but wait for
-      // a notification from the table, that free chopsticks
-      // are available
-      _waitForChopstickAvailNotification()
+      return _me.firstWhere((msg) => msg is NotifyChopsticksAvailable)
       .then((_) {
         _log("got notified - trying to acquire again");
-        _chopstickAvailCompleter = null;
         return _aquireChopsticks();
-      })
-      .then((_) => completer.complete(null));
+      });
     });
-    return completer.future;
   }
 
-  /// completes with value null when both chopsticks are released
-  Future _releaseChopsticks() {
+  Future _releaseChopsticks([_]) {
     _log("releasing chopsticks ...");
     _table.send(new ReleaseChopsticks(_i));
     return new Future.value(null);
   }
 
-  /// completes with value null when thinking is over
-  Future _think(){
+  Future _think([_]){
     _log("thinking ...");
-    return _sleepRandom(2000);
+    return sleepRandom(2000);
   }
 
-  /// completes with value null when eating is over
-  Future _eat() {
+  Future _eat([_]) {
     _log("eating  ...");
-    return _sleepRandom(2000);
+    return sleepRandom(2000);
   }
 }
 
-philosopher() => new Philosopher();
 
 dine(n) {
   assert(n >= 2);
-  var actTable = spawnFunction(table);
-  actTable.send(new InitTable(n));
+
+  Table.spawn(n);
+  // to keep the program alive
+  new ReceivePort()..listen((_){});
 }
