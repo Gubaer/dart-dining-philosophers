@@ -32,14 +32,32 @@ The following implementations are  "standard solutions":
 	philosopher 2: eating ... START	
 	philosopher 2: eating ... END
 	...
-    ```
-    
+```
+  
 The other simulations are ad-hoc implementations.
 
-The implementations are based on the Dart SDK 1.6. 
+The implementations are based on the Dart SDK 1.9. 
 
+
+## Implementation using experimental async/await
+
+There are two implementations of Dijkstra's aproach of [resource ordering] 
+(http://en.wikipedia.org/wiki/Dining_philosophers_problem#Resource_hierarchy_solution):
+
+* [bin/dinner5.dart](https://github.com/Gubaer/dart-dining-philosophers/blob/master/lib/dinner5.dart)
+  only uses `Future`s and their API (mainly `Future.then(...)`).
+  
+* [bin/dinner6.dart](https://github.com/Gubaer/dart-dining-philosophers/blob/master/lib/dinner6.dart)
+  uses the new `async/await` keywords in the Dart language. 
+  
+  For the time being you have to run it with the command line option `--enable-async`:
+  ```bash
+  $ dart --enable-async bin/dinner6.dart
+  ``` 
+
+## Number of isolates
 Compared to initial releases of Dart (in particular to the pre 1.0 releases), 
-the Dart VM can now cope with larger numbers of isolates. In the current release 1.6
+the Dart VM can now cope with larger numbers of isolates. In the current release 1.9
 it is perfectly possible to simulate a large conference of philosophers with  > 100 
 philosophers. In earlier releases the VM would have crashed in this case 
 with a  segmentation violation.
