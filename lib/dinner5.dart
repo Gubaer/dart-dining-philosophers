@@ -14,7 +14,7 @@ library dining_philosophers.dinner5;
  * Forks have a unique numeric id. They are partially orded
  * by this id.
  *
- * Philosophers are initialized with the send ports of their
+ * Philosophers are initialized with the sendports of their
  * left and right fork. Before they start dining, they receive
  * the ids of this forks. A philosopher always picks up the
  * fork with the lower id first. He releases forks in opposite
@@ -23,7 +23,7 @@ library dining_philosophers.dinner5;
 
 import "dart:isolate";
 import "dart:async";
-import "sleep.dart";
+import 'sleep.dart';
 
 class InitTable {
   /// the number of philosophers. n>=2 expected.
@@ -78,7 +78,7 @@ class Fork {
 
   Fork._(InitForkReq init) {
     id = init.id;
-    _stream.asBroadcastStream();
+    _stream = _me.asBroadcastStream();
     init.replyTo.send(new InitForkAck(id, _me.sendPort));
     _stream.listen(_handleRequest);
   }
@@ -171,12 +171,13 @@ class Philosopher {
     .then(startDinner);
   }
 
-  _thinkAndEat([_]) {
-    _think()
-    .then(_pickUpForks)
-    .then(_eat)
-    .then(_putDownForks)
-    .then(_thinkAndEat());
+  Future _thinkAndEat() {
+    _log("think and eat ...");
+    return _think()
+    .then((_) => _pickUpForks())
+    .then((_) => _eat())
+    .then((_) => _putDownForks())
+    .then((_) => _thinkAndEat());
   }
 
   Future _think() {
@@ -184,12 +185,13 @@ class Philosopher {
     return sleepRandom(2000);
   }
 
-  Future _eat(_) {
+  Future _eat() {
     _log("eating ...");
     return sleepRandom(2000);
   }
 
-  Future _pickUpForks(_) {
+  Future _pickUpForks() {
+    _log("pick up forks ...");
     final ReceivePort replyTo = new ReceivePort();
     _forks.forEach((fork) => fork.send(new PickUp(replyTo.sendPort)));
     return replyTo.take(2).toList().then((_) {
@@ -198,7 +200,7 @@ class Philosopher {
     });
   }
 
-  Future _putDownForks(_) {
+  Future _putDownForks() {
     _log("putting down forks ...");
     final ReceivePort replyTo = new ReceivePort();
     final msg = new PutDown(replyTo.sendPort);

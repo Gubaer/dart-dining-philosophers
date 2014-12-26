@@ -1,6 +1,6 @@
 import "package:args/args.dart";
 import "dart:io";
-import "package:dining_philosophers/dinner5.dart" as dinner5;
+import 'package:dining_philosophers/dinner5.dart' as dinner5;
 
 main(List<String> args) {
   var parser = new ArgParser();
